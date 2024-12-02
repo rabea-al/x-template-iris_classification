@@ -7,7 +7,7 @@ from xai_components.base import InArg, OutArg, InCompArg, Component, xai_compone
 class LoadDatasetURL(Component):
     url: InArg[str]
     column_names: InArg[list]
-    
+
     def execute(self, ctx) -> None:
         import pandas as pd
         url = self.url.value
@@ -15,14 +15,14 @@ class LoadDatasetURL(Component):
         dataset = pd.read_csv(url, names=column_names)
         # dataset["class"] = dataset["class"].str.replace("Iris-","") # Iris-setosa --> setosa
         ctx.update({'dataset': dataset})
-        
+
 #------------------------------------------------------------------------------
 #                    Xircuits Component : VisualizeData
 #------------------------------------------------------------------------------
 @xai_component
 class VisualizeData(Component):
     target_column: InArg[str]
-        
+
     def execute(self, ctx) -> None:
         import seaborn as sns
         dataset = ctx['dataset']
@@ -36,7 +36,7 @@ class VisualizeData(Component):
 @xai_component
 class SplitDataAndLabel(Component):
     label_column_index: InArg[int]
-        
+
     def execute(self, ctx) -> None:
         dataset = ctx['dataset']
         label_column_index = self.label_column_index.value
@@ -56,34 +56,34 @@ class TrainTestSplit(Component):
         from sklearn.model_selection import train_test_split
         from sklearn.preprocessing import StandardScaler, OneHotEncoder
         import numpy as np
-        
+
         X = ctx['X']
         Y = ctx['Y']
         test_percentage = self.test_percentage.value
 
         X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=test_percentage)
-        
+
         scaler = StandardScaler()
         scaler.fit(X_train)
         x_train = scaler.transform(X_train)
         x_test = scaler.transform(X_test)
-        
+
         # One hot encoding
         enc = OneHotEncoder()
         y_train = enc.fit_transform(y_train[:, np.newaxis]).toarray()
         y_test = enc.fit_transform(y_test[:, np.newaxis]).toarray()
-        
+
         print(f'Training data shape: {x_train.shape}')
         print(f'Training label shape: {y_train.shape}')
         print(f'Testing data shape: {x_test.shape}')
         print(f'Testing label shape: {y_test.shape}')
-        
+
         ctx.update(
             {'x_train': x_train,
              'x_test': x_test,
-             'y_train': y_train, 
-             'y_test': y_test})    
-        
+             'y_train': y_train,
+             'y_test': y_test})
+
 #------------------------------------------------------------------------------
 #                    Xircuits Component : Create1DModel
 #------------------------------------------------------------------------------
@@ -91,9 +91,9 @@ class TrainTestSplit(Component):
 class Create1DModel(Component):
     loss: InArg[str]
     optimizer: InArg[str]
-    
+
     model: OutArg[any]
-        
+
     def execute(self, ctx) -> None:
         from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
         from tensorflow import keras
@@ -121,7 +121,7 @@ class Create1DModel(Component):
 #------------------------------------------------------------------------------
 @xai_component
 class TrainNNModel(Component):
-    model: InArg[any] 
+    model: InArg[any]
     training_epochs: InArg[int]
 
     training_metrics: OutArg[dict]
@@ -139,7 +139,7 @@ class TrainNNModel(Component):
             epochs=self.training_epochs.value,
             validation_split=0.1
         )
-        
+
         ctx.update({'trained_model': model})
         self.training_metrics.value = train.history
 
@@ -150,21 +150,16 @@ class TrainNNModel(Component):
 class PlotTrainingMetrics(Component):
     training_metrics: InArg[dict]
 
-    def __init__(self):
-        self.done = False
-
-        self.training_metrics = InArg.empty()
-    
     def execute(self, ctx) -> None:
         import matplotlib.pyplot as plt
-        history = self.training_metrics.value 
+        history = self.training_metrics.value
 
         acc = history['accuracy']
         val_acc = history['val_accuracy']
 
         loss = history['loss']
         val_loss = history['val_loss']
-        
+
         epochs = range(1, len(acc)+1)
 
         plt.figure(figsize=(8, 8))
@@ -192,18 +187,18 @@ class PlotTrainingMetrics(Component):
 @xai_component
 class EvaluateNNModel(Component):
 
-    
+
     def execute(self, ctx) -> None:
         import numpy as np
         from sklearn.metrics import classification_report
         model = ctx['trained_model']
         x_test = ctx['x_test']
         y_test = ctx['y_test']
-        
+
         loss, accuracy = model.evaluate(x_test, y_test, verbose=0)
         print("Testing Loss: {:.2f}".format(loss))
         print("Testing Accuracy: {:.2f}".format(accuracy))
-        
+
         y_pred = model.predict(x_test)
         y_pred = [np.argmax(i) for i in y_pred]
         y_test = [np.argmax(i) for i in y_test]
@@ -216,27 +211,21 @@ class EvaluateNNModel(Component):
 class SaveNNModel(Component):
     save_model_path: InArg[str]
     keras_format: InArg[bool]
-    
-    def __init__(self):
-        self.done = False
-        self.save_model_path = InArg(None)
-        self.keras_format = InArg(False)
-    
+
     def execute(self, ctx):
         import os
         model = ctx['trained_model']
         model_name = self.save_model_path.value
 
         dirname = os.path.dirname(model_name)
-        
-        if len(dirname):
+        if dirname:
             os.makedirs(dirname, exist_ok=True)
-        
+
         if self.keras_format.value:
             model_name = model_name + '.h5'
         else:
-            model_name = model_name
-            
+            model_name = model_name + '.keras'
+
         model.save(model_name)
         print(f"Saving model at: {model_name}")
         ctx.update({'saved_model_path': model_name})
@@ -250,11 +239,23 @@ class ConvertTFModelToOnnx(Component):
 
     def execute(self, ctx):
         import os
-        saved_model = ctx['saved_model_path']
+        import tensorflow as tf
+        import tf2onnx
+        import onnx
+
+        saved_model_path = ctx['saved_model_path']
         onnx_path = self.output_onnx_path.value
         dirname = os.path.dirname(onnx_path)
-        if len(dirname):
+        if dirname:
             os.makedirs(dirname, exist_ok=True)
-            
-        os.system(f"python -m tf2onnx.convert --saved-model {saved_model} --opset 11 --output {onnx_path}.onnx")
-        print(f'Converted {saved_model} TF model to {onnx_path}.onnx')
+
+        # Load the Keras model
+        model = tf.keras.models.load_model(saved_model_path)
+
+        # Convert the Keras model to ONNX format
+        input_signature = [tf.TensorSpec([None, *model.input_shape[1:]], tf.float32, name='input')]
+        onnx_model, _ = tf2onnx.convert.from_keras(model, input_signature, opset=11)
+
+        # Save the ONNX model
+        onnx.save(onnx_model, onnx_path + '.onnx')
+        print(f'Converted {saved_model_path} to {onnx_path}.onnx')
