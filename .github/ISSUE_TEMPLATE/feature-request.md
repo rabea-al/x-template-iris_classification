@@ -1,17 +1,18 @@
 ---
 name: Feature Request
-about: Suggest an idea for this project
+about: Suggest an idea for this component library
 title: ''
 labels: ''
 assignees: ''
 
 ---
 
+**Xircuits Version**
+Run `pip show xircuits` to get the version, or mention you've used a specific .whl from a branch.
+
 **What kind of feature is it?**
-- [ ] Xircuits Core (Jupyterlab related features)
-- [ ] Xircuits Canvas (Custom RD related features)
-- [ ] Xircuits Component Library
-- [ ] Testing Automation
+- [ ] Xircuits Component Library Code
+- [ ] Workflow Example
 - [ ] Documentation
 - [ ] Not Sure
 

@@ -1,6 +1,6 @@
 xircuits
-pandas
-seaborn
-scikit-learn
-tensorflow
-tf2onnx
+pandas==2.2.3
+seaborn==0.13.2
+scikit-learn==1.5.2
+tensorflow==2.15.0
+tf2onnx==1.16.1

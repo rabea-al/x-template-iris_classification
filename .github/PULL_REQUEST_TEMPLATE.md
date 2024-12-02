@@ -10,8 +10,8 @@ If applicable, note issue numbers this pull request addresses. You can also note
 
 ## Pull Request Type
 
-- [ ] Xircuits Component Library
-- [ ] Testing Automation
+- [ ] Xircuits Component Library Code
+- [ ] Workflow Example
 - [ ] Documentation
 - [ ] Others (Please Specify)
 
